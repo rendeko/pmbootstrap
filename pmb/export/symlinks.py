@@ -1,5 +1,5 @@
 """
-Copyright 2017 Oliver Smith
+Copyright 2018 Oliver Smith
 
 This file is part of pmbootstrap.
 
@@ -36,11 +36,12 @@ def symlinks(args, flavor, folder):
     info = {
         "boot.img-" + flavor: "Fastboot compatible boot.img file,"
         " contains initramfs and kernel",
+        "blob-" + flavor: "Asus boot blob for TF101",
         "initramfs-" + flavor: "Initramfs",
         "uInitrd-" + flavor: "Initramfs, legacy u-boot image format",
         "uImage-" + flavor: "Kernel, legacy u-boot image format",
         "vmlinuz-" + flavor: "Linux kernel",
-        args.device + ".img": "System partition",
+        args.device + ".img": "Rootfs with partitions for /boot and /",
         "pmos-" + args.device + ".zip": "Android recovery flashable zip",
     }
 
@@ -49,7 +50,7 @@ def symlinks(args, flavor, folder):
     path_boot = args.work + "/chroot_rootfs_" + args.device + "/boot"
     path_buildroot = args.work + "/chroot_buildroot_" + args.deviceinfo["arch"]
     patterns = [path_boot + "/*-" + flavor,
-                path_native + "/home/user/rootfs/" + args.device + ".img",
+                path_native + "/home/pmos/rootfs/" + args.device + ".img",
                 path_buildroot +
                 "/var/lib/postmarketos-android-recovery-installer/pmos-" +
                 args.device + ".zip"]

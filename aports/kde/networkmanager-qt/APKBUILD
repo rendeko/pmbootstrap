@@ -1,0 +1,35 @@
+pkgname=networkmanager-qt
+pkgver=5.45.0
+pkgrel=0
+pkgdesc='Qt wrapper for NetworkManager API'
+arch="all"
+url='https://community.kde.org/Frameworks'
+license="LGPL-2.1"
+depends="networkmanager"
+depends_dev="networkmanager-dev"
+makedepends="$depends_dev extra-cmake-modules doxygen qt5-qttools-dev"
+subpackages="$pkgname-dev $pkgname-doc"
+source="https://download.kde.org/stable/frameworks/${pkgver%.*}/${pkgname}-${pkgver}.tar.xz"
+
+build() {
+	cd "$builddir"
+	cmake "$srcdir"/${pkgname}-${pkgver} \
+		-DCMAKE_BUILD_TYPE=Release \
+		-DCMAKE_INSTALL_PREFIX=/usr \
+		-DKDE_INSTALL_LIBDIR=lib \
+		-DBUILD_TESTING=OFF \
+		-DBUILD_QCH=ON
+	make
+}
+
+check() {
+	cd "$builddir"
+	CTEST_OUTPUT_ON_FAILURE=TRUE ctest
+}
+
+
+package() {
+	cd "$builddir"
+	make DESTDIR="${pkgdir}" install
+}
+sha512sums="287333633aee73d35862634b4eddc304b260552019158ebda503f0d1546697670ecb32b8253d30d6f1239340d1c3346bb2e57d5c1a0cd92386f76927f4942a8a  networkmanager-qt-5.45.0.tar.xz"

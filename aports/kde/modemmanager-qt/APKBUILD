@@ -1,0 +1,35 @@
+pkgname=modemmanager-qt
+pkgver=5.45.0
+pkgrel=0
+pkgdesc='Qt wrapper for ModemManager DBus API'
+arch="all"
+url='https://community.kde.org/Frameworks'
+license="GPL-2.0"
+depends=""
+depends_dev="modemmanager-dev qt5-qtbase-dev"
+makedepends="$depends_dev extra-cmake-modules doxygen graphviz-dev qt5-qttools-dev"
+subpackages="$pkgname-dev $pkgname-doc"
+source="https://download.kde.org/stable/frameworks/${pkgver%.*}/${pkgname}-${pkgver}.tar.xz"
+
+build() {
+	cd "$builddir"
+	cmake "$srcdir"/${pkgname}-${pkgver} \
+		-DCMAKE_BUILD_TYPE=Release \
+		-DCMAKE_INSTALL_PREFIX=/usr \
+		-DKDE_INSTALL_LIBDIR=lib \
+		-DBUILD_TESTING=OFF \
+		-DBUILD_QCH=ON
+	make
+}
+
+check() {
+	cd "$builddir"
+	CTEST_OUTPUT_ON_FAILURE=TRUE ctest
+}
+
+
+package() {
+	cd "$builddir"
+	make DESTDIR="${pkgdir}" install
+}
+sha512sums="fe08e74dc94acb93ca965dd59b85a51a3df9e9a62b8654bb20260b17b00b180ca2f20804ae95d830096ce59696d40c1a4e9c0432bc83bc15e0517f46f353e77a  modemmanager-qt-5.45.0.tar.xz"

@@ -1,5 +1,5 @@
 """
-Copyright 2017 Oliver Smith
+Copyright 2018 Oliver Smith
 
 This file is part of pmbootstrap.
 
@@ -17,6 +17,7 @@ You should have received a copy of the GNU General Public License
 along with pmbootstrap.  If not, see <http://www.gnu.org/licenses/>.
 """
 import logging
+import os
 
 import pmb.build
 import pmb.chroot.apk
@@ -34,18 +35,20 @@ def odin(args, flavor, folder):
     suffix = "rootfs_" + args.device
 
     # Validate method
-    method = args.deviceinfo["flash_methods"]
+    method = args.deviceinfo["flash_method"]
     if not method.startswith("heimdall-"):
         raise RuntimeError("An odin flashable tar is not supported for the flash"
                            " method '" + method + "' specified in the current configuration."
                            " Only 'heimdall' methods are supported.")
 
     # Partitions
-    partition_kernel = args.deviceinfo["flash_heimdall_partition_kernel"]
-    partition_initfs = args.deviceinfo["flash_heimdall_partition_initfs"]
+    partition_kernel = args.deviceinfo["flash_heimdall_partition_kernel"] or "KERNEL"
+    partition_initfs = args.deviceinfo["flash_heimdall_partition_initfs"] or "RECOVERY"
 
     # Temporary folder
     temp_folder = "/tmp/odin-flashable-tar"
+    if os.path.exists(args.work + "/chroot_native" + temp_folder):
+        pmb.chroot.root(args, ["rm", "-rf", temp_folder])
 
     # Odin flashable tar generation script (because redirecting stdin/stdout is not allowed
     # in pmbootstrap's chroot/shell functions for security reasons)
@@ -87,15 +90,15 @@ def odin(args, flavor, folder):
         pmb.chroot.root(args, command, suffix)
 
     # Move Odin flashable tar to native chroot and cleanup temp folder
-    pmb.chroot.user(args, ["mkdir", "-p", "/home/user/rootfs"])
+    pmb.chroot.user(args, ["mkdir", "-p", "/home/pmos/rootfs"])
     pmb.chroot.root(args, ["mv", "/mnt/rootfs_" + args.device + temp_folder +
-                           "/" + odin_device_tar_md5, "/home/user/rootfs/"]),
-    pmb.chroot.root(args, ["chown", "user:user",
-                           "/home/user/rootfs/" + odin_device_tar_md5])
+                           "/" + odin_device_tar_md5, "/home/pmos/rootfs/"]),
+    pmb.chroot.root(args, ["chown", "pmos:pmos",
+                           "/home/pmos/rootfs/" + odin_device_tar_md5])
     pmb.chroot.root(args, ["rmdir", temp_folder], suffix)
 
     # Create the symlink
-    file = args.work + "/chroot_native/home/user/rootfs/" + odin_device_tar_md5
+    file = args.work + "/chroot_native/home/pmos/rootfs/" + odin_device_tar_md5
     link = folder + "/" + odin_device_tar_md5
     pmb.helpers.file.symlink(args, file, link)
 

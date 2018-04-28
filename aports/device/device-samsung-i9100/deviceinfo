@@ -8,9 +8,8 @@ deviceinfo_date=""
 deviceinfo_nonfree="????"
 deviceinfo_dtb=""
 deviceinfo_modules_initfs=""
-deviceinfo_external_disk="true"
-deviceinfo_external_disk_install="true"
-deviceinfo_flash_methods="heimdall-isorec"
+deviceinfo_external_storage="true"
+deviceinfo_flash_method="heimdall-isorec"
 deviceinfo_arch="armhf"
 
 # Device related
@@ -19,11 +18,7 @@ deviceinfo_screen_width="480"
 deviceinfo_screen_height="800"
 deviceinfo_dev_touchscreen="/dev/input/event2"
 
-
 # Heimdall related
 deviceinfo_flash_heimdall_partition_kernel="KERNEL"
 deviceinfo_flash_heimdall_partition_initfs="RECOVERY"
 deviceinfo_flash_heimdall_partition_system="FACTORYFS"
-
-deviceinfo_weston_core_modules="xwayland.so"
-

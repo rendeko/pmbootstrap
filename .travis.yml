@@ -5,13 +5,14 @@ addons:
   apt:
     sources:
     - debian-sid
-    packages:
-    - shellcheck
-install: "pip install flake8"
+install:
+  - sudo apt install shellcheck qemu-system-x86
+  - pip install flake8 pytest-cov python-coveralls
 script:
-  - test/static_code_analysis.sh
-  - yes "" | ./pmbootstrap.py init
-  - ./pmbootstrap.py kconfig_check
-  - test/check_checksums.py
+  - .travis/travis_script.sh
+after_success:
+  - coveralls
+after_failure:
+  - .travis/travis_after_failure.sh
 notifications:
   - email: false

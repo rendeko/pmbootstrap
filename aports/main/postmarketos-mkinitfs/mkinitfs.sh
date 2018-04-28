@@ -3,13 +3,12 @@
 source_deviceinfo()
 {
 	if [ ! -e "/etc/deviceinfo" ]; then
-		echo "ERROR: Missing /etc/deviceinfo!"
-		exit 1
+		echo "NOTE: deviceinfo (from device package) not installed yet," \
+			"not building the initramfs now (it should get built later" \
+			"automatically.)"
+		exit 0
 	fi
 	. /etc/deviceinfo
-	if [ -z "${deviceinfo_modules_initfs}" ]; then
-		echo "WARNING: deviceinfo_modules_initfs is empty!"
-	fi
 }
 
 parse_commandline()
@@ -24,6 +23,21 @@ parse_commandline()
 	outfile_extra=$2-extra
 	kernel=$3
 	modules_path="/lib/modules/${kernel}"
+}
+
+# Verify that each file required by the installed hooks exists and exit with an
+# error if they don't.
+check_hook_files()
+{
+	for file in "/etc/postmarketos-mkinitfs/files"/*.files; do
+		[ -f "$file" ] || continue
+		while IFS= read -r line; do
+			if ! [ -f "$line" ]; then
+				echo "ERROR: File ${line} specified in ${file} does not exist!"
+				exit 1
+			fi
+		done < "$file"
+	done
 }
 
 create_folders()
@@ -46,16 +60,6 @@ get_modules_by_globs()
 		kernel/arch/*/crypto/*
 		kernel/drivers/md/dm-crypt.ko
 
-		# kms.modules
-		kernel/drivers/char/agp
-		kernel/drivers/gpu
-		kernel/drivers/i2c
-		kernel/drivers/video
-		kernel/arch/x86/video/fbdev.ko
-
-		# mmc.modules
-		kernel/drivers/mmc
-
 		# required for modprobe
 		modules.*
 	"
@@ -75,7 +79,14 @@ get_modules_by_globs()
 # That's why postmarketos-mkinitfs depends on kmod
 get_modules_by_name()
 {
-	MODULES="drm_kms_helper drm dm_crypt ext4 \
+	{
+		echo "Scanning kernel module dependencies..."
+		echo "NOTE: ** modprobe warnings below can be ignored ** if your device does not run the"
+		echo "mainline kernel yet (most devices!) or if the related kernel options are enabled"
+		echo "with 'y' instead of 'm' (module)."
+	} >&2
+
+	MODULES="drm_kms_helper drm dm_crypt \
 		${deviceinfo_modules_initfs}"
 	modprobe \
 		-a \
@@ -94,24 +105,53 @@ get_modules()
 }
 
 # Get the paths to all binaries and their dependencies
+BINARIES="/bin/busybox /bin/busybox-extras /usr/sbin/telnetd /sbin/kpartx"
+BINARIES_EXTRA="
+	$(find /usr/lib/directfb-* -name '*.so')
+	/lib/libz.so.1
+	/sbin/cryptsetup
+	/sbin/dmsetup
+	/sbin/e2fsck
+	/usr/bin/charging-sdl
+	/usr/bin/osk-sdl
+	/usr/lib/libGL.so.1
+	/usr/lib/libts*
+	/usr/lib/ts/*
+	/usr/sbin/parted
+	/usr/sbin/resize2fs
+	/usr/sbin/thd
+"
 get_binaries()
 {
-	BINARIES="/bin/busybox /bin/busybox-extras /usr/sbin/telnetd /sbin/kpartx"
-	if [ "${deviceinfo_msm_refresher}" == "true" ]; then
-		BINARIES="${BINARIES} /usr/sbin/msm-fb-refresher"
-	fi
+	for file in "/etc/postmarketos-mkinitfs/files"/*.files; do
+		[ -f "$file" ] || continue
+		while IFS= read -r line; do
+			BINARIES="${BINARIES} ${line}"
+		done < "$file"
+	done
 	lddtree -l $BINARIES | sort -u
+}
+
+# Collect non-binary files for osk-sdl and its dependencies
+# This gets called as $(get_osk_config), so the exit code can be checked/handled.
+get_osk_config()
+{
+	fontpath=$(awk '/^keyboard-font/{print $3}' /etc/osk.conf)
+	if [ ! -f $fontpath ]; then
+		exit 1
+	fi
+	ret="
+		/etc/osk.conf
+		/etc/ts.conf
+		/etc/pointercal
+		/etc/fb.modes
+		$fontpath
+	"
+	echo "${ret}"
 }
 
 get_binaries_extra()
 {
-	BINARIES_EXTRA="
-		/sbin/cryptsetup
-		/sbin/dmsetup
-		/usr/sbin/parted
-		/sbin/e2fsck
-		/usr/sbin/resize2fs
-	"
 	tmp1=$(mktemp /tmp/mkinitfs.XXXXXX)
 	get_binaries > "$tmp1"
 	tmp2=$(mktemp /tmp/mkinitfs.XXXXXX)
@@ -156,25 +196,44 @@ create_cpio_image()
 		| gzip -1 > "$2"
 }
 
+# Required command check with useful error message
+# $1: command (e.g. "mkimage")
+# $2: package (e.g. "uboot-tools")
+# $3: related deviceinfo variable (e.g. "generate_bootimg")
+require_package()
+{
+	[ "$(command -v "$1")" == "" ] || return
+	echo "ERROR: 'deviceinfo_$3' is set, but the package '$2' was not"
+	echo "installed! Please add '$2' to the depends= line of your device's"
+	echo "APKBUILD. See also: <https://postmarketos.org/deviceinfo>"
+	exit 1
+}
+
 # Legacy u-boot images
 create_uboot_files()
 {
 	[ "${deviceinfo_generate_legacy_uboot_initfs}" == "true" ] || return
+	require_package "mkimage" "uboot-tools" "generate_legacy_uboot_initfs"
+
 	echo "==> initramfs: creating uInitrd"
-	mkimage -A arm -T ramdisk -C none -n uInitrd -d "$outfile" "${outfile/initramfs-/uInitrd-}"
+	mkimage -A arm -T ramdisk -C none -n uInitrd -d "$outfile" \
+		"${outfile/initramfs-/uInitrd-}" || exit 1
 
 	echo "==> kernel: creating uImage"
 	kernelfile="${outfile/initramfs-/vmlinuz-}"
 	if [ -n "${deviceinfo_dtb}" ]; then
 		kernelfile="${kernelfile}-dtb"
 	fi
-	mkimage -A arm -O linux -T kernel -C none -a 80008000 -e 80008000 -n postmarketos -d $kernelfile "${outfile/initramfs-/uImage-}"
+	mkimage -A arm -O linux -T kernel -C none -a 80008000 -e 80008000 \
+		-n postmarketos -d $kernelfile "${outfile/initramfs-/uImage-}" || exit 1
 }
 
 # Android devices
 create_bootimg()
 {
 	[ "${deviceinfo_generate_bootimg}" == "true" ] || return
+	require_package "mkbootimg" "mkbootimg" "generate_bootimg"
+
 	echo "==> initramfs: creating boot.img"
 	_base="${deviceinfo_flash_offset_base}"
 	[ -z "$_base" ] && _base="0x10000000"
@@ -182,6 +241,20 @@ create_bootimg()
 	kernelfile="${outfile/initramfs-/vmlinuz-}"
 	if [ -n "${deviceinfo_dtb}" ]; then
 		kernelfile="${kernelfile}-dtb"
+	fi
+	_dt=""
+	if [ "${deviceinfo_bootimg_qcdt}" == "true" ]; then
+		_dt="--dt /boot/dt.img"
+		if ! [ -e "/boot/dt.img" ]; then
+			echo "ERROR: File not found: /boot/dt.img, but"
+			echo "'deviceinfo_bootimg_qcdt' is set. Please verify that your"
+			echo "device is a QCDT device by analyzing the boot.img file"
+			echo "(e.g. 'pmbootstrap bootimg_analyze path/to/twrp.img')"
+			echo "and based on that, set the deviceinfo variable to false or"
+			echo "adjust your linux APKBUILD to properly generate the dt.img"
+			echo "file. See also: <https://postmarketos.org/deviceinfo>"
+			exit 1
+		fi
 	fi
 	mkbootimg \
 		--kernel "${kernelfile}" \
@@ -193,8 +266,13 @@ create_bootimg()
 		--ramdisk_offset "${deviceinfo_flash_offset_ramdisk}" \
 		--tags_offset "${deviceinfo_flash_offset_tags}" \
 		--pagesize "${deviceinfo_flash_pagesize}" \
-		${deviceinfo_bootimg_qcdt:+ --dt /boot/dt.img} \
-		-o "${outfile/initramfs-/boot.img-}"
+		${_dt} \
+		-o "${outfile/initramfs-/boot.img-}" || exit 1
+	if [ "${deviceinfo_bootimg_blobpack}" == "true" ]; then
+		echo "==> initramfs: creating blob"
+		blobpack "${outfile/initramfs-/blob-}" LNX \
+			"${outfile/initramfs-/boot.img-}" || exit 1
+	fi
 }
 
 # Create splash screens
@@ -218,12 +296,12 @@ generate_splash_screens()
 	# $1: splash_name
 	# $2: text
 	# $3: arguments
-	set -- "splash-telnet"           "On-screen keyboard is not implemented yet, plug in a USB cable and run on your PC:\\ntelnet 172.16.42.1" "" \
-	       "splash-loading"          "Loading..." "--center" \
+	set -- "splash-loading"          "Loading..." "--center" \
 	       "splash-noboot"           "boot partition not found\\nhttps://postmarketos.org/troubleshooting" "--center" \
 	       "splash-noinitramfsextra" "initramfs-extra not found\\nhttps://postmarketos.org/troubleshooting" "--center" \
 	       "splash-nosystem"         "system partition not found\\nhttps://postmarketos.org/troubleshooting" "--center" \
-	       "splash-mounterror"       "unable to mount root partition\\nhttps://postmarketos.org/troubleshooting" "--center"
+	       "splash-mounterror"       "unable to mount root partition\\nhttps://postmarketos.org/troubleshooting" "--center" \
+	       "splash-debug-shell"      "WARNING\\ndebug-shell is active\\nhttps://postmarketos.org/debug-shell" "--center"
 
 	# Ensure cache folder exists
 	mkdir -p "${splash_cache_dir}"
@@ -234,7 +312,7 @@ generate_splash_screens()
 		splash_name=$1
 		splash_text=$2
 		splash_args=$3
-		
+
 		# Compute hash using the following values concatenated:
 		# - postmarketos-splash package version
 		# - splash config file
@@ -271,20 +349,59 @@ append_device_tree()
 	dtb="/usr/share/dtb/${deviceinfo_dtb}.dtb"
 	kernel="${outfile/initramfs-/vmlinuz-}"
 	echo "==> kernel: appending device-tree ${deviceinfo_dtb}"
-	cat $kernel $dtb > "${kernel}-dtb"
+	if [ -e "$dtb" ]; then
+		cat "$kernel" "$dtb" > "${kernel}-dtb"
+	else
+		echo "NOTE: device tree does not exist, not appending it to the kernel."
+		echo "This is expected for downstream kernels."
+		cp "$kernel" "${kernel}-dtb"
+	fi
+}
+
+# Create the initramfs-extra archive
+# $1: outfile
+generate_initramfs_extra()
+{
+	echo "==> initramfs: creating $1"
+
+	osk_conf="$(get_osk_config)"
+	if [ $? -eq 1 ]; then
+		echo "ERROR: Font specified in /etc/osk.conf does not exist!"
+		exit 1
+	fi
+
+	# Ensure cache folder exists
+	mkinitfs_cache_dir="/var/cache/postmarketos-mkinitfs"
+	mkdir -p "$mkinitfs_cache_dir"
+
+	# Generate cache output filename (initfs_extra_cache) by hashing all input files
+	initfs_extra_files=$(echo "$BINARIES_EXTRA$osk_conf" | xargs -0 -I{} sh -c 'ls $1 2>/dev/null' -- {} | sort -u)
+	initfs_extra_files_hashes="$(md5sum $initfs_extra_files)"
+	initfs_extra_hash="$(echo "$initfs_extra_files_hashes" | md5sum | awk '{ print $1 }')"
+	initfs_extra_cache="$mkinitfs_cache_dir/$(basename $1)_${initfs_extra_hash}"
+
+	if ! [ -e "$initfs_extra_cache" ]; then
+		# If a cached file is missing, clear the whole cache and create it
+		rm -f ${mkinitfs_cache_dir}/*
+
+		# Set up initramfs-extra in temp folder
+		tmpdir_extra=$(mktemp -d /tmp/mkinitfs.XXXXXX)
+		mkdir -p "$tmpdir_extra"
+		copy_files "$(get_binaries_extra)" "$tmpdir_extra"
+		copy_files "$osk_conf" "$tmpdir_extra"
+		create_cpio_image "$tmpdir_extra" "$initfs_extra_cache"
+		rm -rf "$tmpdir_extra"
+	fi
+
+	cp "$initfs_extra_cache" "$1"
 }
 
 # initialize
 source_deviceinfo
 parse_commandline "$1" "$2" "$3"
+check_hook_files
 echo "==> initramfs: creating $outfile"
 tmpdir=$(mktemp -d /tmp/mkinitfs.XXXXXX)
-
-if [ "${deviceinfo_msm_refresher}" == "true" ] && ! [ -e /usr/sbin/msm-fb-refresher ]; then
-	echo "ERROR: Please add msm-fb-refresher as dependency to your device package,"
-	echo "or set msm_refresher to false in your deviceinfo!"
-	exit 1
-fi
 
 # set up initfs in temp folder
 create_folders
@@ -309,17 +426,6 @@ create_bootimg
 
 rm -rf "$tmpdir"
 
-# initialize initramfs-extra
-echo "==> initramfs: creating $outfile_extra"
-tmpdir_extra=$(mktemp -d /tmp/mkinitfs.XXXXXX)
-
-# set up initfs-extra in temp folder
-mkdir -p "$tmpdir_extra"
-copy_files "$(get_binaries_extra)" "$tmpdir_extra"
-
-# finish up
-create_cpio_image "$tmpdir_extra" "$outfile_extra"
-
-rm -rf "$tmpdir_extra"
+generate_initramfs_extra "$outfile_extra"
 
 exit 0

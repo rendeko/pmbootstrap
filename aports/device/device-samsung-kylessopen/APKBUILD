@@ -1,0 +1,22 @@
+# Reference: <https://postmarketos.org/devicepkg>
+pkgname="device-samsung-kylessopen"
+pkgdesc="Galaxy Trend"
+pkgver=0.1
+pkgrel=1
+url="https://postmarketos.org"
+license="MIT"
+arch="noarch"
+options="!check"
+depends="postmarketos-base linux-samsung-kylessopen mkbootimg mesa-dri-swrast msm-fb-refresher"
+makedepends="devicepkg-dev"
+source="deviceinfo"
+
+build() {
+	devicepkg_build $startdir $pkgname
+}
+
+package() {
+	devicepkg_package $startdir $pkgname
+}
+
+sha512sums="110e3da1e36e1a2a0d9e9b99bf688a03534553f0c2b1507245e5d7956ae9e71e1e8547b9a6101f6c5477eddc792d9f3349efb56f81716352a192c791e48536ab  deviceinfo"

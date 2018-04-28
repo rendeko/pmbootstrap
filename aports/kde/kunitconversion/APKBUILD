@@ -1,33 +1,36 @@
+# Contributor: Bart Ribbers <bribbers@disroot.org>
+# Maintainer: Bart Ribbers <bribbers@disroot.org>
 pkgname=kunitconversion
-pkgver=5.37.0
-pkgrel=1
+pkgver=5.45.0
+pkgrel=0
 pkgdesc='Support for unit conversion'
 arch="all"
 url='https://community.kde.org/Frameworks'
-license="LGPL"
-depends="ki18n"
-makedepends="extra-cmake-modules python qt5-qttools-dev ki18n-dev doxygen"
+license="LGPL-2.1"
+depends=""
+depends_dev="ki18n-dev"
+makedepends="$depends_dev extra-cmake-modules qt5-qttools-dev doxygen"
 source="https://download.kde.org/stable/frameworks/${pkgver%.*}/${pkgname}-${pkgver}.tar.xz"
 subpackages="$pkgname-dev $pkgname-doc $pkgname-lang"
-
-prepare() {
-	mkdir -p $srcdir/build
-}
+options="!check" # Check always fails
 
 build() {
-	cd $srcdir/build
-	cmake "$srcdir"/${pkgname}-${pkgver} \
+	cmake \
 		-DCMAKE_BUILD_TYPE=Release \
 		-DCMAKE_INSTALL_PREFIX=/usr \
 		-DKDE_INSTALL_LIBDIR=lib \
-		-DBUILD_TESTING=OFF \
 		-DBUILD_QCH=ON
 	make
 }
 
+check() {
+	cd "$builddir"
+	CTEST_OUTPUT_ON_FAILURE=TRUE ctest
+}
+
 package() {
-	cd $srcdir/build
+	cd "$builddir"
 	make DESTDIR="${pkgdir}" install
 }
 
-sha512sums="50a4c6efca7d8f218756b9b15f2655bc56fa320178d11291bd3bc4be84ba625a6e8dfa9f2e6320c0c6e8b9f80e80b1125b2e0d1d8e0c86b3e0a1fb9521a4ca5e  kunitconversion-5.37.0.tar.xz"
+sha512sums="f0ef375aef134e450678edea196a49c8161562f2a3e5e045010c9af086c38f780846666f67a55ce9544975bd6c251c6640fd5af54e3a739ff395d36721df9e81  kunitconversion-5.45.0.tar.xz"

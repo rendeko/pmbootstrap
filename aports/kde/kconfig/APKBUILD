@@ -1,34 +1,36 @@
+# Contributor: Bart Ribbers <bribbers@disroot.org>
+# Maintainer: Bart Ribbers <bribbers@disroot.org>
 pkgname=kconfig
-pkgver=5.37.0
-pkgrel=1
+pkgver=5.45.0
+pkgrel=0
 pkgdesc='Configuration system'
 arch="all"
 url='https://community.kde.org/Frameworks'
-license="LGPL"
-depends="qt5-qtbase"
-makedepends="extra-cmake-modules qt5-qttools-dev clang py3-qt5 doxygen"
+license="LGPL-2.1"
+depends=""
+makedepends="extra-cmake-modules qt5-qttools-dev doxygen"
 source="https://download.kde.org/stable/frameworks/${pkgver%.*}/${pkgname}-${pkgver}.tar.xz"
 subpackages="$pkgname-dev $pkgname-doc $pkgname-lang"
-
-prepare() {
-	mkdir -p $srcdir/build
-}
+options="!check" # Fails due to requiring running X11
 
 build() {
-	cd $srcdir/build
-	cmake "$srcdir"/${pkgname}-${pkgver} \
+	cmake \
 		-DCMAKE_BUILD_TYPE=Release \
 		-DCMAKE_INSTALL_PREFIX=/usr \
 		-DKDE_INSTALL_LIBDIR=lib \
 		-DKDE_INSTALL_LIBEXECDIR=lib \
-		-DBUILD_TESTING=OFF \
 		-DBUILD_QCH=ON
 	make
 }
 
+check() {
+	cd "$builddir"
+	CTEST_OUTPUT_ON_FAILURE=TRUE ctest
+}
+
 package() {
-	cd $srcdir/build
+	cd "$builddir"
 	make DESTDIR="${pkgdir}" install
 }
 
-sha512sums="8d6c120f14f2c5d2c44173b142a8d175cdfb9a48f3a94a5798bf222ca5954a7420e6bbe6a467565032468cf5f8485ac73a48e8c0c8c825ef3573e9641cf60fa1  kconfig-5.37.0.tar.xz"
+sha512sums="d248741546774554de13781735c0bf630ce7986d645ef77dc61842caeadbb4e8c4f581ba93e3d37ac5716c3548954e0120284a3cabc8f88c4122bfb668359085  kconfig-5.45.0.tar.xz"

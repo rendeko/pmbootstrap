@@ -1,0 +1,50 @@
+# Automatically generated aport, do not edit!
+# Generator: pmbootstrap aportgen musl-x86_64
+
+pkgname="musl-x86_64"
+pkgver="1.1.19"
+pkgrel=7
+arch="armhf aarch64 x86"
+subpackages="musl-dev-x86_64:package_dev"
+
+_arch="x86_64"
+_mirror="http://dl-cdn.alpinelinux.org/alpine/"
+
+url="https://musl-libc.org"
+license="MIT"
+options="!check !strip"
+pkgdesc="the musl library (lib c) implementation for $_arch"
+
+_target="$(arch_to_hostspec $_arch)"
+
+source="
+    musl-$pkgver-r$pkgrel-$_arch.apk::$_mirror/edge/main/$_arch/musl-$pkgver-r$pkgrel.apk
+    musl-dev-$pkgver-r$pkgrel-$_arch.apk::$_mirror/edge/main/$_arch/musl-dev-$pkgver-r$pkgrel.apk
+"
+
+package() {
+    mkdir -p "$pkgdir/usr/$_target"
+    cd "$pkgdir/usr/$_target"
+    tar -xf $srcdir/musl-$pkgver-r$pkgrel-$_arch.apk
+    rm .PKGINFO .SIGN.*
+}
+package_dev() {
+    mkdir -p "$subpkgdir/usr/$_target"
+    cd "$subpkgdir/usr/$_target"
+    tar -xf $srcdir/musl-dev-$pkgver-r$pkgrel-$_arch.apk
+    rm .PKGINFO .SIGN.*
+
+    # symlink everything from /usr/$_target/usr/* to /usr/$_target/*
+    # so the cross-compiler gcc does not fail to build.
+    for _dir in include lib; do
+        mkdir -p "$subpkgdir/usr/$_target/$_dir"
+        cd "$subpkgdir/usr/$_target/usr/$_dir"
+        for i in *; do
+            cd "$subpkgdir/usr/$_target/$_dir"
+            ln -s /usr/$_target/usr/$_dir/$i $i
+        done
+    done
+}
+
+sha512sums="45157ee2e242d1b8edf6c0eb232d4d27b3a28d88882e6ac2969baeec5934a655a6d14e38a3946306fd311d6e09295b32faff878527d85141a86ba00253a6f7f0  musl-1.1.19-r7-x86_64.apk
+021f167e5a8005191a079898f28805b2693433934a107c239fbdc4ad41587ce81941cb31178716b35bd722f073424f59d1e87a746ad9c5e21e60ea0d787f0566  musl-dev-1.1.19-r7-x86_64.apk"

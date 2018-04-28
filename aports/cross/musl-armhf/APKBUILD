@@ -1,17 +1,17 @@
 # Automatically generated aport, do not edit!
 # Generator: pmbootstrap aportgen musl-armhf
 
-pkgname=musl-armhf
-pkgver=1.1.16
-pkgrel=20
+pkgname="musl-armhf"
+pkgver="1.1.19"
+pkgrel=7
+arch="aarch64 x86_64 x86"
 subpackages="musl-dev-armhf:package_dev"
 
 _arch="armhf"
-_mirror="https://nl.alpinelinux.org/alpine/"
+_mirror="http://dl-cdn.alpinelinux.org/alpine/"
 
 url="https://musl-libc.org"
 license="MIT"
-arch="all"
 options="!check !strip"
 pkgdesc="the musl library (lib c) implementation for $_arch"
 
@@ -46,5 +46,5 @@ package_dev() {
     done
 }
 
-sha512sums="a52d650127eda2c035f66fe04c7486f96f711adad991ec47d7b7d135b2f67e5f0367e54b1e91db3783784c8f257a9b4cf71ba12cf631398d1846e22d1fba501f  musl-1.1.16-r20-armhf.apk
-e25183aca85c71d56c67b256dde8b66b02c49fbde3933e8acc18f67b299464615f6ff7e9f8e6a4dd65fac7cd9a810f0687f87130c24e2a353c894262340ac5a0  musl-dev-1.1.16-r20-armhf.apk"
+sha512sums="7acd9fb3f47c48eeb5f875675d0a6cf8821b7a2eca0dd293d7dcd2f176d415ae91597cb9b6eaa91810eea5552fd344211f2d3a8924d9db57f562e1677857cd7f  musl-1.1.19-r7-armhf.apk
+a45b0617d454922a88b4df36ff71ebee5c9a9d5a649f69a1c54d395dfcd38bf821d3faa00aec47e3ce00a2165805cab1ca406d3722e4e1867961df6e2e57aa8f  musl-dev-1.1.19-r7-armhf.apk"

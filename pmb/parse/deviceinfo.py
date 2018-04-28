@@ -1,5 +1,5 @@
 """
-Copyright 2017 Oliver Smith
+Copyright 2018 Oliver Smith
 
 This file is part of pmbootstrap.
 
@@ -19,6 +19,28 @@ along with pmbootstrap.  If not, see <http://www.gnu.org/licenses/>.
 import logging
 import os
 import pmb.config
+
+
+def sanity_check(info, path):
+    # "flash_methods" is legacy
+    if "flash_methods" in info:
+        raise RuntimeError("deviceinfo_flash_methods has been renamed to"
+                           " deviceinfo_flash_method. Please adjust your"
+                           " deviceinfo file: " + path)
+
+    # "external_disk*" is legacy
+    if "external_disk" in info or "external_disk_install" in info:
+        raise RuntimeError("Instead of deviceinfo_external_disk and"
+                           " deviceinfo_external_disk_install, please use the"
+                           " new variable deviceinfo_external_storage in your"
+                           " deviceinfo file: " + path)
+
+    # "msm_refresher" is legacy
+    if "msm_refresher" in info:
+        raise RuntimeError("It is enough to specify 'msm-fb-refresher' in the"
+                           " depends of your device's package now. Please"
+                           " delete the deviceinfo_msm_refresher line in: " +
+                           path)
 
 
 def deviceinfo(args, device=None):
@@ -60,4 +82,5 @@ def deviceinfo(args, device=None):
         if key not in ret:
             ret[key] = ""
 
+    sanity_check(ret, path)
     return ret

@@ -1,0 +1,103 @@
+# Kernel config based on: arch/arm/configs/tegra_android_defconfig
+
+pkgname="linux-samsung-p4wifi"
+pkgver=4.16.0
+pkgrel=0
+pkgdesc="Galaxy Tab 10.1 kernel"
+arch="armhf"
+_carch="arm"
+_flavor="samsung-p4wifi"
+url="https://kernel.org"
+license="GPL2"
+options="!strip !check !tracedeps"
+makedepends="perl sed installkernel bash gmp-dev bc linux-headers elfutils-dev xz flex bison openssl-dev"
+HOSTCC="${CC:-gcc}"
+HOSTCC="${HOSTCC#${CROSS_COMPILE}}"
+
+# Source
+_repository="linux"
+_rev="503aa31b667507c7adf02c45e74d743f03119b1c"
+_config="config-${_flavor}.${arch}"
+source="
+	$pkgname-$_rev.tar.gz::https://github.com/decatf/${_repository}/archive/${_rev}.tar.gz
+	$_config
+	compiler-gcc6.h
+"
+builddir="$srcdir/${_repository}-${_rev}"
+
+prepare() {
+	local _patch_failed=
+	cd "$builddir"
+	# first apply patches in specified order
+	for i in $source; do
+		case $i in
+		*.patch|*.patch::*)
+			_patch=${i%::*}
+			msg "Applying $_patch..."
+			if ! patch -s -p1 -N -i "$srcdir"/$_patch; then
+				echo $_patch >>failed
+				_patch_failed=1
+			fi
+			;;
+		esac
+	done
+
+	if ! [ -z "$_patch_failed" ]; then
+		error "The following patches failed:"
+		cat failed
+		return 1
+	fi
+
+	mkdir -p "$srcdir"/build
+	cp -v "$srcdir"/$_config "$srcdir"/build/.config
+	make -C "$builddir" O="$srcdir"/build ARCH="$_carch" HOSTCC="$HOSTCC" \
+		olddefconfig
+}
+
+# this is so we can do: 'abuild menuconfig' to reconfigure kernel
+menuconfig() {
+	cd "$srcdir"/build
+	make ARCH="$_carch" menuconfig
+	cp .config "$startdir"/$_config
+}
+
+build() {
+	cd "$srcdir"/build
+	unset LDFLAGS
+	make ARCH="$_carch" CC="${CC:-gcc}" \
+		KBUILD_BUILD_VERSION="$((pkgrel + 1 ))-${_flavor}" \
+		CFLAGS_MODULE=-fno-pic
+}
+
+package() {
+	cd "$srcdir/build/arch/${_carch}/boot"
+
+	if [ "$CARCH" == "aarch64" ]; then
+		install -Dm644 "$srcdir/build/arch/${_carch}/boot/Image" \
+			"$pkgdir/boot/vmlinuz-$_flavor"
+	else
+		install -Dm644 "$srcdir/build/arch/${_carch}/boot/"*zImage \
+			"$pkgdir/boot/vmlinuz-$_flavor"
+	fi
+
+	install -D "$srcdir/build/include/config/kernel.release" \
+		"$pkgdir/usr/share/kernel/$_flavor/kernel.release"
+
+	cd "$srcdir"/build
+
+	local _install
+	case "$CARCH" in
+	aarch64*|arm*)	_install="modules_install dtbs_install" ;;
+	*)		_install="modules_install" ;;
+	esac
+
+	make -j1 $_install \
+		ARCH="$_carch" \
+		INSTALL_MOD_PATH="$pkgdir" \
+		INSTALL_DTBS_PATH="$pkgdir/usr/share/dtb"
+}
+
+
+sha512sums="50f462c42a8cade2c83445f730db4ed1eb229139fd38a7c19bd69fc0e3aecf8849e5ce94f2ae7c24e8da0e72b339d521f3fb4b505c9b84472eb10e3b96921c37  linux-samsung-p4wifi-503aa31b667507c7adf02c45e74d743f03119b1c.tar.gz
+2c0cbdea23cb50d8c7ceb06b0bfd5241516ac5fa9bd7a8c8cf05619abad38dcb2849692f89951645398f782696d125f3c31e01e2cdc3095e4cc1656e05d6a4e9  config-samsung-p4wifi.armhf
+d80980e9474c82ba0ef1a6903b434d8bd1b092c40367ba543e72d2c119301c8b2d05265740e4104ca1ac5d15f6c4aa49e8776cb44264a9a28dc551e0d1850dcc  compiler-gcc6.h"

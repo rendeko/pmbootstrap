@@ -1,12 +1,13 @@
 pkgname=postmarketos-android-recovery-installer
-pkgver=0.0.4
+pkgver=0.1.7
 pkgrel=0
 pkgdesc="TWRP compatible postmarketOS installer script"
 url="https://github.com/postmarketOS"
 # multipath-tools: kpartx
-depends="busybox-extras lddtree cryptsetup multipath-tools device-mapper parted util-linux zip"
+depends="busybox-extras lddtree cryptsetup multipath-tools device-mapper parted util-linux zip e2fsprogs tar"
 source="build_zip.sh
 	update-binary
+	pmos_chroot
 	pmos_install
 	pmos_install_functions
 	pmos_setpw"
@@ -16,18 +17,18 @@ license="GPL3"
 package() {
 	install -Dm755 "$srcdir/build_zip.sh" \
 		"$pkgdir/sbin/build-recovery-zip"
-	mkdir -p "$pkgdir/var/lib/postmarketos-android-recovery-installer/META-INF/com/google/android/"
 	install -Dm644 "$srcdir"/update-binary \
 		"$pkgdir/var/lib/postmarketos-android-recovery-installer/META-INF/com/google/android/update-binary"
-	mkdir "$pkgdir/var/lib/postmarketos-android-recovery-installer/bin/"
+	install -Dm755 "$srcdir"/pmos_chroot \
+		"$pkgdir/var/lib/postmarketos-android-recovery-installer/pmos_chroot"
 	for file in pmos_install pmos_install_functions pmos_setpw; do
 		install -Dm755 "$srcdir/$file" \
-			"$pkgdir/var/lib/postmarketos-android-recovery-installer/bin/$file"
+			"$pkgdir/var/lib/postmarketos-android-recovery-installer/chroot/bin/$file"
 	done
-	mkdir "$pkgdir/var/lib/postmarketos-android-recovery-installer/lib/"
 }
-sha512sums="d065577f587ee604cfa635c3eaba5c856800e9dafbbab65d4311dc89b72feab131fc23605bc0a344979f0760162bc509ac2056ee3c4d3e78e56be15032e314c1  build_zip.sh
-156f889593d82d4b1c88f3873299fc054e70e78bf26af37af4dd7770ed31a0a581f2cf03cad9e11a60159f424d2d3869fd6cd28600ad305469ddf01eaff49f6c  update-binary
-8d888a7468e4e316c213911fcde60134f10c875dd21fcf95a7c3f805df1e90bada69553b595f5f74be0d8d48524c0a08f85ee7b1062b03675d1d0429bf7fd2f8  pmos_install
-b4c669ab6dfe330a30c575f864cea916ac357ae96547c2296d1b5399669c6f49570c60554985d2939a1d3e3cb464e3229e2b4724eba1dd5d920dcec1b0f7f0e3  pmos_install_functions
-27dd89aa8471349995a1cbbc1034ead662a0d1dd70ca5490f3191ceaaeb853331003c20ffddbbd95fe822135a85c1beb1e2a32bb33b10c2a4177b30347a40555  pmos_setpw"
+sha512sums="924f961e1a488134d265f43724d2b06a908ac1522706dc3f7118f0dec16453aa0a928fef6d9a31a6a747910df665e64f25c94c47a9e3f1d57db19abb0fd8210d  build_zip.sh
+6390fc1b1c7dc8e917bb675d2e59e479782ac7754e97c4781866360ff704afe2d04f173a0ac74e3129db45328fab4b6b77a8717ee2e17c6ff79febadaa8ea034  update-binary
+f19c15fd99cc806d088ddf9c954111e48635f971ca500beeaa4893eb25d19fe0601210a57e9ab1a1dc7a6d79a3154765e696ee3329bbb1875b6d6df36a7b3fb3  pmos_chroot
+d65b72ffb1140425bf96b1e3ef75a517bebbfa70e6bdc584dbd91c2cbefce63377c744b3b33f1967bad37cb368aa746e25d25b10eebf464399b262f62378b0f4  pmos_install
+514881d7812197830869c73428acc88f8a94dd02184634406ffe47884cd21d7b02ecc7806dae39308f026b1dbfca9ceee714fdfdc2bebc3ebcdeed71865de2b2  pmos_install_functions
+c6355b6d823dac883e1a352f59a9a2199e2934d78a73df72dc3c4fc14ef93765a15179203d4a8a2ca0d841b63cd4c25c4689b63c8cf4d4da2bcec1f8ff76bff5  pmos_setpw"

@@ -1,22 +1,26 @@
 pkgname=unicsy-demo
-pkgver=0.2
-pkgrel=1
+pkgver=0.4.6
+pkgrel=0
 pkgdesc="Phone hardware demo (battery status, light sensors, accelerometer, LEDs, backlights)"
 url="https://github.com/pavelmachek/unicsy_demo"
 arch="noarch"
 license="GPL3"
-depends="py-gtk-dev"
+depends="python2 py-gtk-dev py-dbus mate-terminal xscreensaver pulseaudio alsa-utils bash xmessage"
 makedepends=""
 subpackages=""
-
+options="!strip"
 source="${pkgname}-${pkgver}.tar.gz::https://github.com/pavelmachek/unicsy_demo/archive/${pkgver}.tar.gz"
 
-options="!strip"
-
+builddir="$srcdir/unicsy_demo-$pkgver"
 package() {
-    install -d -m755 "$pkgdir"/usr/share/unicsy/demo/
+    install -d -m755 "$pkgdir"/usr/share/unicsy
+    install -d -m1666 "$pkgdir"/usr/share/unicsy/wd
     install -d -m755 "$pkgdir"/usr/bin
-    cp -a "${srcdir}/unicsy_demo-${pkgver}"/* "$pkgdir"/usr/share/unicsy/
+    cp -a "$builddir"/* "$pkgdir"/usr/share/unicsy/
     ln -s /usr/share/unicsy/demo/demo.py "$pkgdir"/usr/bin/unicsy_demo
+    install -D -m755 "$builddir"/startup/unicsy_demo.desktop \
+		"$pkgdir"/etc/xdg/autostart/unicsy_demo.desktop
+    install -D -m440 "$builddir"/startup/phone.sudoers \
+		"$pkgdir"/etc/sudoers.d/phone
 }
-sha512sums="403fb82b6f6a9d37b195ccda38dc6d4756e4124d11fbcc9f310501be5cf96488fca12a1ad0126cfa6001319750067ffdfaf8eea0fb13d144075028779bfb7c98  unicsy-demo-0.2.tar.gz"
+sha512sums="60b6158f03b96dce38845e2b3cdf00a139be3ead618c7315f2d2d27464439d443580dc1d91f1add043480c499a1357e4105e715fca16f0a426e633d8abc813bb  unicsy-demo-0.4.6.tar.gz"

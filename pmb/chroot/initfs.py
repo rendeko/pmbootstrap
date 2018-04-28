@@ -1,5 +1,5 @@
 """
-Copyright 2017 Oliver Smith
+Copyright 2018 Oliver Smith
 
 This file is part of pmbootstrap.
 
@@ -88,14 +88,15 @@ def ls(args, flavor, suffix, extra=False):
     if extra:
         tmp = "/tmp/initfs-extra-extracted"
     extract(args, flavor, suffix, extra)
-    pmb.chroot.user(args, ["ls", "-lahR", "."], suffix, tmp, log=False)
+    pmb.chroot.root(args, ["ls", "-lahR", "."], suffix, tmp, log=False)
     pmb.chroot.root(args, ["rm", "-r", tmp], suffix)
 
 
 def frontend(args):
     # Find the appropriate kernel flavor
     suffix = "rootfs_" + args.device
-    flavor = pmb.chroot.other.kernel_flavor_autodetect(args, suffix)
+    flavors = pmb.chroot.other.kernel_flavors_installed(args, suffix)
+    flavor = flavors[0]
     if hasattr(args, "flavor") and args.flavor:
         flavor = args.flavor
 
@@ -124,7 +125,7 @@ def frontend(args):
             pmb.chroot.initfs_hooks.delete(args, args.hook, suffix)
 
         # Rebuild the initfs for all kernels after adding/removing a hook
-        for flavor in pmb.chroot.other.kernel_flavors_installed(args, suffix):
+        for flavor in flavors:
             build(args, flavor, suffix)
 
     if action in ["ls", "extract"]:

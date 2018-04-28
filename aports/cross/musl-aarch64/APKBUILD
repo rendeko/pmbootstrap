@@ -1,17 +1,17 @@
 # Automatically generated aport, do not edit!
 # Generator: pmbootstrap aportgen musl-aarch64
 
-pkgname=musl-aarch64
-pkgver=1.1.16
-pkgrel=20
+pkgname="musl-aarch64"
+pkgver="1.1.19"
+pkgrel=7
+arch="armhf x86_64 x86"
 subpackages="musl-dev-aarch64:package_dev"
 
 _arch="aarch64"
-_mirror="https://nl.alpinelinux.org/alpine/"
+_mirror="http://dl-cdn.alpinelinux.org/alpine/"
 
 url="https://musl-libc.org"
 license="MIT"
-arch="all"
 options="!check !strip"
 pkgdesc="the musl library (lib c) implementation for $_arch"
 
@@ -46,5 +46,5 @@ package_dev() {
     done
 }
 
-sha512sums="1f21f6b34a1257291b6e1d214b4b62e46e56756c463c8ca599a3d2aaf7f42285efd1dc8a31b58c3a116b8638f4c1f967d6d56b56a1c27622d30ffa266ad699e4  musl-1.1.16-r20-aarch64.apk
-741a5ef340ca9c6c3230384ef053e8dbc0f959149acdd0ef90a8e3c4420ea1910ae8bdca3929a28025635f1ba15e5148430aa156d2196ae425e62cc5b8255e54  musl-dev-1.1.16-r20-aarch64.apk"
+sha512sums="dba7c24ce5b3db5ebd2681b74782de9cd914d1db39b15f4b47495d2a29b27eac42df85704655355f4f88c9ece2ddab8cdca5f60de1cf9f6415855b7d550fe0f9  musl-1.1.19-r7-aarch64.apk
+ed5901fda4a01fc98908ad33b1149db2d001505ea26fc5e246d5e1690128b97a45c7f570a4ee3f5e418a55a72182fe5a51f887e43cead06a8dd44d30c0a92359  musl-dev-1.1.19-r7-aarch64.apk"

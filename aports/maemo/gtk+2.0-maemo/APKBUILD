@@ -1,6 +1,7 @@
 pkgname=gtk+2.0-maemo
 pkgver=2.24.31
-pkgrel=1
+_tag=2.24.25
+pkgrel=4
 subpkg=gtk-update-icon-cache
 pkgdesc="The GTK+ Toolkit (v2)"
 url="http://www.gtk.org/"
@@ -8,11 +9,11 @@ install="$pkgname.post-install $pkgname.post-upgrade $pkgname.post-deinstall"
 triggers="$subpkg.trigger=/usr/share/icons/*"
 arch="all"
 license="LGPL"
-subpackages="$pkgname-dev $pkgname-doc $pkgname-lang $subpkg:icon_cache"
+subpackages="$pkgname-dev $pkgname-doc $pkgname-lang:lang $subpkg:icon_cache"
 depends="shared-mime-info gtk-update-icon-cache"
 
 replaces="gtk+ gtk+-dev gtk+-doc"
-provides="gtk+2.0=$pkgver gtk+2.0-dev=$pkgver gtk+2.0-doc=$pkgver"
+provides="gtk+2.0=$pkgver"
 
 depends_dev="
 	atk-dev
@@ -45,19 +46,20 @@ makedepends="
 	libxi-dev
 	zlib-dev
 	py-six"
+_repo_raw_url=https://raw.githubusercontent.com/maemo-leste/gtk
 source="http://ftp.gnome.org/pub/gnome/sources/gtk+/${pkgver%.*}/gtk+-$pkgver.tar.xz
-	https://raw.githubusercontent.com/fremantle-gtk2/gtk/2.24.25-3m7%2Bmaemo/debian/patches/hildonize-gdk-window.diff
-	https://raw.githubusercontent.com/fremantle-gtk2/gtk/2.24.25-3m7%2Bmaemo/debian/patches/hildonize-gtk-container.diff
-	https://raw.githubusercontent.com/fremantle-gtk2/gtk/2.24.25-3m7%2Bmaemo/debian/patches/hildonize-gtk-dialog.diff
-	https://raw.githubusercontent.com/fremantle-gtk2/gtk/2.24.25-3m7%2Bmaemo/debian/patches/hildonize-gtk-entry.diff
-	https://raw.githubusercontent.com/fremantle-gtk2/gtk/2.24.25-3m7%2Bmaemo/debian/patches/hildonize-gtk-enums.diff
-	https://raw.githubusercontent.com/fremantle-gtk2/gtk/2.24.25-3m7%2Bmaemo/debian/patches/hildonize-gtk-iconview.diff
-	https://raw.githubusercontent.com/fremantle-gtk2/gtk/2.24.25-3m7%2Bmaemo/debian/patches/hildonize-gtk-imcontext.diff
-	https://raw.githubusercontent.com/fremantle-gtk2/gtk/2.24.25-3m7%2Bmaemo/debian/patches/hildonize-gtk-menu.diff
-	https://raw.githubusercontent.com/fremantle-gtk2/gtk/2.24.25-3m7%2Bmaemo/debian/patches/hildonize-gtk-rbtree.diff
-	https://raw.githubusercontent.com/fremantle-gtk2/gtk/2.24.25-3m7%2Bmaemo/debian/patches/hildonize-gtk-textview.diff
-	https://raw.githubusercontent.com/fremantle-gtk2/gtk/2.24.25-3m7%2Bmaemo/debian/patches/hildonize-gtk-widget.diff
-	https://raw.githubusercontent.com/fremantle-gtk2/gtk/2.24.25-3m7%2Bmaemo/debian/patches/hildonize-gtk-window.diff
+	$_repo_raw_url/$_tag/debian/patches/hildonize-gdk-window.diff
+	$_repo_raw_url/$_tag/debian/patches/hildonize-gtk-container.diff
+	$_repo_raw_url/$_tag/debian/patches/hildonize-gtk-dialog.diff
+	$_repo_raw_url/$_tag/debian/patches/hildonize-gtk-entry.diff
+	$_repo_raw_url/$_tag/debian/patches/hildonize-gtk-enums.diff
+	$_repo_raw_url/$_tag/debian/patches/hildonize-gtk-iconview.diff
+	$_repo_raw_url/$_tag/debian/patches/hildonize-gtk-imcontext.diff
+	$_repo_raw_url/$_tag/debian/patches/hildonize-gtk-menu.diff
+	$_repo_raw_url/$_tag/debian/patches/hildonize-gtk-rbtree.diff
+	$_repo_raw_url/$_tag/debian/patches/hildonize-gtk-textview.diff
+	$_repo_raw_url/$_tag/debian/patches/hildonize-gtk-widget.diff
+	$_repo_raw_url/$_tag/debian/patches/hildonize-gtk-window.diff
 	xid-collision-debug.patch
 	gtk2-fixdso.patch
 	hildonize-gtk-treeview.diff
@@ -75,7 +77,7 @@ prepare() {
 			*.patch | *.diff)
 				filename=`basename "$i"`
 				msg $filename
-				patch -p1 -i "$srcdir/$filename" || return 1
+				patch -p1 -i "$srcdir/$filename"
 			;;
 		esac
 	done
@@ -96,33 +98,45 @@ build() {
 		--localstatedir=/var \
 		--with-xinput=yes \
 		--without-libjasper \
-		--with-included-loaders=png \
-		|| return 1
+		--with-included-loaders=png
 	# https://bugzilla.gnome.org/show_bug.cgi?id=655517
-	sed -i -e 's/ -shared / -Wl,-O1,--as-needed\0/g' libtool || return 1
-	make || return 1
+	sed -i -e 's/ -shared / -Wl,-O1,--as-needed\0/g' libtool
+	make
 }
 
 package() {
 	cd "$_builddir"
-	make DESTDIR="$pkgdir" install || return 1
+	make DESTDIR="$pkgdir" install
 }
 
 dev() {
 	mkdir -p "$subpkgdir"/usr/bin "$subpkgdir"/usr/share/
-	mv "$pkgdir"/usr/share/gtk-2.0 "$subpkgdir"/usr/share/ || return 1
+	mv "$pkgdir"/usr/share/gtk-2.0 "$subpkgdir"/usr/share/
 	default_dev
 	replaces="gtk+2.0"
+	provides="gtk+2.0-dev=$pkgver"
+
 	mv "$pkgdir"/usr/bin/gtk-builder-convert \
 		"$pkgdir"/usr/bin/gtk-demo \
-		"$subpkgdir"/usr/bin || return 1
+		"$subpkgdir"/usr/bin
+}
+
+doc() {
+	default_doc
+	provides="gtk+2.0-doc=$pkgver"
+}
+
+lang() {
+	default_lang
+	provides="gtk+2.0-lang=$pkgver"
 }
 
 icon_cache() {
 	depends="hicolor-icon-theme"
+	provides="gtk+2.0-icon_cache=$pkgver"
 
 	mkdir -p "$subpkgdir"/usr/bin
-	mv "$pkgdir"/usr/bin/"$subpkg" "$subpkgdir"/usr/bin || return 1
+	mv "$pkgdir"/usr/bin/"$subpkg" "$subpkgdir"/usr/bin
 }
 
 sha512sums="75b846661308d94b5236e7e1c367deabf57753792ca87e92f9769822dd5ec90e00cd8d5574adcc12162e3702e1ae6dc152278a1d218f9bd9e4d1c8dc1dd520c1  gtk+-2.24.31.tar.xz

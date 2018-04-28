@@ -1,5 +1,5 @@
 """
-Copyright 2017 Oliver Smith
+Copyright 2018 Oliver Smith
 
 This file is part of pmbootstrap.
 
@@ -20,6 +20,7 @@ import os
 import logging
 import glob
 
+import pmb.build
 import pmb.config
 import pmb.chroot
 import pmb.chroot.apk
@@ -37,18 +38,21 @@ def init(args, suffix="native"):
                            build=False)
 
     # Fix permissions
-    pmb.chroot.root(args, ["chmod", "-R", "a+rw",
+    pmb.chroot.root(args, ["chown", "root:abuild",
+                           "/var/cache/distfiles"], suffix)
+    pmb.chroot.root(args, ["chmod", "g+w",
                            "/var/cache/distfiles"], suffix)
 
     # Generate package signing keys
     chroot = args.work + "/chroot_" + suffix
-    if not os.path.exists(chroot + "/home/user/.abuild/abuild.conf"):
+    if not os.path.exists(args.work + "/config_abuild/abuild.conf"):
         logging.info("(" + suffix + ") generate abuild keys")
         pmb.chroot.user(args, ["abuild-keygen", "-n", "-q", "-a"],
                         suffix)
 
         # Copy package signing key to /etc/apk/keys
-        for key in glob.glob(chroot + "/home/user/.abuild/*.pub"):
+        for key in glob.glob(chroot +
+                             "/mnt/pmbootstrap-abuild-config/*.pub"):
             key = key[len(chroot):]
             pmb.chroot.root(args, ["cp", key, "/etc/apk/keys/"], suffix)
 
@@ -75,12 +79,18 @@ def init(args, suffix="native"):
         pmb.chroot.root(args, ["chmod", "+x", "/usr/local/bin/gzip"], suffix)
 
     # Add user to group abuild
-    pmb.chroot.root(args, ["adduser", "user", "abuild"], suffix)
+    pmb.chroot.root(args, ["adduser", "pmos", "abuild"], suffix)
 
     # abuild.conf: Don't clean the build folder after building, so we can
     # inspect it afterwards for debugging
     pmb.chroot.root(args, ["sed", "-i", "-e", "s/^CLEANUP=.*/CLEANUP=''/",
                            "/etc/abuild.conf"], suffix)
+
+    # Qemu workaround (aarch64 only)
+    arch = pmb.parse.arch.from_chroot_suffix(args, suffix)
+    emulate = pmb.parse.arch.cpu_emulation_required(args, arch)
+    if emulate and arch == "aarch64":
+        pmb.build.qemu_workaround_aarch64(args, suffix)
 
     # Mark the chroot as initialized
     pmb.chroot.root(args, ["touch", marker], suffix)

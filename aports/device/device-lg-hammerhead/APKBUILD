@@ -1,42 +1,60 @@
 pkgname=device-lg-hammerhead
 pkgver=1
-pkgrel=11
+pkgrel=23
 pkgdesc="Google Nexus 5"
 url="https://github.com/postmarketOS"
 arch="noarch"
 license="MIT"
-depends="linux-lg-hammerhead linux-firmware mkbootimg"
+depends="postmarketos-base linux-postmarketos-qcom mkbootimg mesa-dri-freedreno"
 makedepends=""
 install=""
-subpackages=""
+subpackages="$pkgname-weston $pkgname-x11 $pkgname-nonfree-firmware:nonfree_firmware"
 source="
 	deviceinfo
-	90-android-touch-dev.rules
-	udev-v4l-hack.sh
 	profile.sh
-	bcmdhd.cal
+	weston.ini
+	xorg.conf
+	modules-load.conf
+	brcmfmac4339-sdio.txt
 "
 options="!check"
 
-build() {
-	return 0
-}
-
 package() {
-	install -D -m644 "$srcdir"/deviceinfo \
+	install -Dm644 "$srcdir"/deviceinfo \
 		"$pkgdir"/etc/deviceinfo
-	install -D -m644 "$srcdir"/90-android-touch-dev.rules \
-		"$pkgdir"/etc/udev/rules.d/90-android-touch-dev.rules
-	install -D -m644 "$srcdir"/profile.sh \
+	install -Dm644 "$srcdir"/profile.sh \
 		"$pkgdir"/etc/profile.d/00-$pkgname.sh
-	install -D -m644 "$srcdir"/udev-v4l-hack.sh \
-		"$pkgdir"/etc/profile.d/00-udev-v4l-hack.sh
-	install -D -m644 "$srcdir"/bcmdhd.cal \
-		"$pkgdir"/etc/wifi/bcmdhd.cal
+	install -D -m644 "$srcdir"/modules-load.conf \
+		"$pkgdir"/etc/modules-load.d/00-${pkgname}.conf
+	install -D -m644 "$srcdir"/brcmfmac4339-sdio.txt \
+		"$pkgdir"/lib/firmware/brcm/brcmfmac4339-sdio.txt
 }
 
-sha512sums="e954e4ad792932bb23acee1a0f864067d6bf5d50372fc8fd99e3faaf5bda1d57a4f29978649d106100cd80cdfc8a1fa496b396d6fa461e08769a75c23f8449af  deviceinfo
-ee25f3d0377f027d108593eb7953b8db49d7f05a5c36a0c8ca7e7849d15e3c217bc1ac97d77a66e28d2db4b81c0f50b905639911276da40321d2b6cca7f797df  90-android-touch-dev.rules
-4f528656c4febb18742e89552dfe7fdc824ed4ad6ad2777d20b4f55040edd93d8e3ea657baabcdbe77bd0fb4bd3d23e5e0b2dae574f0df6723b2e26216ee81e1  udev-v4l-hack.sh
+x11() {
+	install_if="$pkgname xorg-server"
+	depends="
+		libinput
+		xf86-input-libinput
+		xf86-video-fbdev"
+	install -Dm644 "$srcdir"/xorg.conf \
+		"$subpkgdir"/etc/X11/xorg.conf.d/10-hammerhead.conf
+}
+
+weston() {
+	install_if="$pkgname weston"
+	install -Dm644 "$srcdir"/weston.ini \
+		"$subpkgdir"/etc/xdg/weston/weston.ini
+}
+
+nonfree_firmware() {
+	pkgdesc="Wifi/GPU firmware"
+	depends="linux-firmware-qcom linux-firmware-brcm firmware-adreno"
+	mkdir "$subpkgdir"
+}
+
+sha512sums="d91d248da5e8567a36f48e0ca0cd8d63e2bdb52bdb407b6c57717db68b64e9e1526a408912f7818aea81ce455606ab24949f6ba8aa79c7612672a996c5e81c82  deviceinfo
 d04013c17caf77a87ebea167dbe48f7efa9c9d3123c5743d359f3ea8ccc6b268fa021535a4bf8291eb4a352f0c92f6eb527da0db340421f53bc1cc439a453306  profile.sh
-32652ef366694f34dec31f316a38aca96700e3a5a3eac1f8d192e3c5de7b91e480b1c0fcd8e7c80a51692dc3737020ebbb2e5d3779436e82fb18822089c63055  bcmdhd.cal"
+bdf89f09e1ab82ac0da273c9ebca21755855d497f9dc0d6f7af99fd56157f98d72d70118504db8b2c20c0b818cbc5d344c70463334a60d924671a8acbda41dff  weston.ini
+f86ef35730b89bcc8160c08db7a7fcd0970adf60c0b77af68bac397de49c0d1783e6b8db1762380c9bf874aff2d030c6f44ecb75c803d69e79ede11376409369  xorg.conf
+d8ce60ea7acaabf627ddca2f0887a4cda46f313b7aaf7934bef2fef8a6e0798ccefab849e4571e4e3fcd06ae34c1a6efe3b58b401e2e443416f6200e6d4ea769  modules-load.conf
+59baf815a45c632f3413dc8d9f48978f91d8f8ee165003689dcd54cc3b3d1af65bfc0c88f76579f840b83b303a28a1de2c2994a651d62cc6f6d8988c8716e345  brcmfmac4339-sdio.txt"

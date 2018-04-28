@@ -1,0 +1,21 @@
+pkgname="device-samsung-klte"
+pkgdesc="Samsung Galaxy S5"
+pkgver=0.1
+pkgrel=3
+url="https://postmarketos.org"
+license="MIT"
+arch="noarch"
+options="!check"
+depends="postmarketos-base linux-samsung-klte mkbootimg msm-fb-refresher"
+makedepends="devicepkg-dev"
+source="deviceinfo"
+
+build() {
+	devicepkg_build $startdir $pkgname
+}
+
+package() {
+	devicepkg_package $startdir $pkgname
+}
+
+sha512sums="fc39550299d6ffee33c1b984671a91a5da9a4f24db5994cfd8650a75f96416bc30c3b169353ea3939c765df6a5801ee9647808c82d46a00190a0c1db44708b73  deviceinfo"

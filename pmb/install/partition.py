@@ -1,5 +1,5 @@
 """
-Copyright 2017 Oliver Smith
+Copyright 2018 Oliver Smith
 
 This file is part of pmbootstrap.
 
@@ -30,7 +30,7 @@ def partitions_mount(args):
     """
     prefix = args.sdcard
     if not args.sdcard:
-        img_path = "/home/user/rootfs/" + args.device + ".img"
+        img_path = "/home/pmos/rootfs/" + args.device + ".img"
         prefix = pmb.install.losetup.device_by_back_file(args, img_path)
 
     partition_prefix = None
@@ -81,6 +81,3 @@ def partition(args, size_boot):
     for command in commands:
         pmb.chroot.root(args, ["parted", "-s", "/dev/install"] +
                         command, check=False)
-
-    # Mount new partitions
-    partitions_mount(args)

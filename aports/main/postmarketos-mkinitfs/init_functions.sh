@@ -1,7 +1,6 @@
 #!/bin/sh
 # This file will be in /init_functions.sh inside the initramfs.
 IP=172.16.42.1
-TELNET_PORT=23
 
 # Redirect stdout and stderr to logfile
 setup_log() {
@@ -40,12 +39,23 @@ setup_mdev() {
 }
 
 mount_subpartitions() {
+	# Do not create subpartition mappings if pmOS_boot
+	# already exists (e.g. installed on an sdcard)
+	blkid |grep -q "pmOS_boot"  && return
+
 	for i in /dev/mmcblk*; do
 		case "$(kpartx -l "$i" 2>/dev/null | wc -l)" in
 			2)
 				echo "Mount subpartitions of $i"
 				kpartx -afs "$i"
-				break
+				# Ensure that this was the *correct* subpartition
+				# Some devices have mmc partitions that appear to have
+				# subpartitions, but aren't our subpartition.
+				if blkid | grep -q "pmOS_boot"; then
+					break
+				fi
+				kpartx -d "$i"
+				continue
 				;;
 			*)
 				continue
@@ -62,25 +72,14 @@ find_root_partition() {
 	#
 	# mount_subpartitions() must get executed before calling
 	# find_root_partition(), so partitions from b) also get found.
-	#
-	# However, after executing mount_subpartitions(), the partitions
-	# from a) get mounted to /dev/mapper - and then you can only use
-	# the ones from /dev/mapper, not the original partition paths (they
-	# will appear as busy when trying to mount them). This is an
-	# unwanted side-effect, that we must deal with.
-	# The subpartitions from b) get mounted to /dev/mapper, and this is
-	# what we want.
-	#
-	# To deal with the side-effect, we use the partitions from
-	# /dev/mapper first, and then fall back to partitions with all paths
-	# (in case the user inserted an SD card after mount_subpartitions()
-	# ran!).
 
-	# Try the partitions in /dev/mapper first.
+	# Try partitions in /dev/mapper and /dev/dm-* first
 	for id in pmOS_root crypto_LUKS; do
-		DEVICE="$(blkid | grep /dev/mapper | grep "$id" \
-			| cut -d ":" -f 1)"
-		[ -z "$DEVICE" ] || break
+		for path in /dev/mapper /dev/dm; do
+			DEVICE="$(blkid | grep "$path" | grep "$id" \
+				| cut -d ":" -f 1)"
+			[ -z "$DEVICE" ] || break 2
+		done
 	done
 
 	# Then try all devices
@@ -150,10 +149,12 @@ resize_root_partition() {
 			kpartx -afs "$partition_dev"
 		fi
 	fi
-	# Detect and resize root partition on QEMU
-	if [ -z "${partition##"/dev/hda"*}" ]; then
+	# Resize the root partition (non-subpartitions). Usually we do not want this,
+	# except for QEMU devices (where PMOS_FORCE_PARTITION_RESIZE gets passed as
+	# kernel parameter).
+	if grep -q PMOS_FORCE_PARTITION_RESIZE /proc/cmdline; then
 		echo "Resize root partition ($partition)"
-		parted -s /dev/hda resizepart 2 100%
+		parted -s "$(echo "$partition" | sed -E 's/p?2$//')" resizepart 2 100%
 		partprobe
 	fi
 }
@@ -162,8 +163,7 @@ unlock_root_partition() {
 	partition="$(find_root_partition)"
 	if cryptsetup isLuks "$partition"; then
 		until cryptsetup status root | grep -qwi active; do
-			start_usb_unlock
-			cryptsetup luksOpen "$partition" root || continue
+			start_onscreen_keyboard
 		done
 		# Show again the loading splashscreen
 		show_splash /splash-loading.ppm.gz
@@ -247,6 +247,9 @@ start_udhcpd() {
 	if [ -z $INTERFACE ]; then
 		ifconfig usb0 "$IP" && INTERFACE=usb0
 	fi
+	if [ -z $INTERFACE ]; then
+		ifconfig eth0 "$IP" && INTERFACE=eth0
+	fi
 
 	# Create /etc/udhcpd.conf
 	{
@@ -264,49 +267,50 @@ start_udhcpd() {
 	udhcpd
 }
 
-start_usb_unlock() {
-	# Only run once
-	_marker="/tmp/_start_usb_unlock"
-	[ -e "$_marker" ] && return
-	touch "$_marker"
+setup_directfb_tslib(){
+	# Set up directfb and tslib
+	# Note: linux_input module is disabled since it will try to take over
+	# the touchscreen device from tslib (e.g. on the N900)
+	export DFBARGS="system=fbdev,no-cursor,disable-module=linux_input"
+	# shellcheck disable=SC2154
+	if [ ! -z "$deviceinfo_dev_touchscreen" ]; then
+		export TSLIB_TSDEVICE="$deviceinfo_dev_touchscreen"
+	fi
+}
 
-	# Set up networking
-	setup_usb_network
-	start_udhcpd
+start_onscreen_keyboard(){
+	setup_directfb_tslib
+	osk-sdl -n root -d "$partition" -c /etc/osk.conf -v > /osk-sdl.log 2>&1
+	unset DFBARGS
+	unset TSLIB_TSDEVICE
+}
 
-	# Telnet splash
-	show_splash /splash-telnet.ppm.gz
-
-	echo "Start the telnet daemon (unlock encrypted partition)"
+start_charging_mode(){
+	# Check cmdline for charging mode
+	chargingmodes="
+		androidboot.mode=charger
+		lpm_boot=1
+		androidboot.huawei_type=oem_rtc
+		startup=0x00010004
+	"
+	# shellcheck disable=SC2086
+	grep -Eq "$(echo $chargingmodes | tr ' ' '|')" /proc/cmdline || return
+	setup_directfb_tslib
+	# Get the font from osk-sdl config
+	fontpath=$(awk '/^keyboard-font/{print $3}' /etc/osk.conf)
+	# Set up triggerhappy config
 	{
-		echo '#!/bin/sh'
-		echo '. /init_functions.sh'
-		echo 'unlock_root_partition'
-		echo 'echo_connect_ssh_message'
-		echo 'killall cryptsetup'
-		echo "pkill -f telnetd.*:${TELNET_PORT}"
-	} >/telnet_connect.sh
-	chmod +x /telnet_connect.sh
-	telnetd -b "${IP}:${TELNET_PORT}" -l /telnet_connect.sh
+		echo "KEY_POWER 1 pgrep -x charging-sdl || charging-sdl -pcf $fontpath"
+	} >/etc/triggerhappy.conf
+	# Start it once and then start triggerhappy
+	charging-sdl -pcf "$fontpath" &
+	thd --deviceglob /dev/input/event* --triggers /etc/triggerhappy.conf
 }
 
 # $1: path to ppm.gz file
 show_splash() {
 	gzip -c -d "$1" >/tmp/splash.ppm
 	fbsplash -s /tmp/splash.ppm
-}
-
-echo_connect_ssh_message() {
-	echo "Your root partition has been decrypted successfully!"
-	echo "You can connect to your device using SSH in a few seconds:"
-	echo "ssh user@$IP"
-}
-
-start_msm_refresher() {
-	# shellcheck disable=SC2154,SC2086
-	if [ "${deviceinfo_msm_refresher}" = "true" ]; then
-		/usr/sbin/msm-fb-refresher --loop &
-	fi
 }
 
 set_framebuffer_mode() {
